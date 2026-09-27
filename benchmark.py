@@ -31,7 +31,7 @@ async def run_jev(q: str):
         a = r.answers
         return (a["intent"].choice, float(a["intent"].confidence), max(a["intent"].probabilities.values()),
                 a["language"].choice, (time.perf_counter() - t0) * 1000,
-                r.usage.input_tokens if r.usage else 0)
+                r.usage.input_tokens if r.usage else 0, r.model)
 
 
 async def run_llm(q: str):
@@ -78,12 +78,17 @@ def reliability_plot(df, systems, path):
 
 
 async def main(csv, llm_usd_per_query, target):
-    OUT.mkdir(exist_ok=True)
+    global OUT
+    if C.MOCK:  # never let mock numbers land where real, committable results go
+        OUT = OUT / "mock"
+        print("MOCK backend: writing to results/mock/ (gitignored). These are NOT Jev numbers.")
+    OUT.mkdir(parents=True, exist_ok=True)
     df = pd.read_csv(csv)
-    print(f"{len(df)} queries · mode: {'MOCK (not Jev!)' if C.MOCK else C.TYPESAFE_MODEL}")
+    print(f"{len(df)} queries · backend: {C.BACKEND}{' (NOT Jev!)' if C.MOCK else ''}")
 
     jev = await asyncio.gather(*(run_jev(q) for q in df["query"]))
-    df[["jev_pred", "jev_conf", "jev_maxprob", "jev_lang", "jev_ms", "jev_tokens"]] = pd.DataFrame(jev)
+    df[["jev_pred", "jev_conf", "jev_maxprob", "jev_lang", "jev_ms", "jev_tokens", "jev_model"]] = pd.DataFrame(jev)
+    model_ver = ", ".join(sorted(df["jev_model"].astype(str).unique()))
     df["jev_correct"] = df["jev_pred"] == df["gold_intent"]
     df["jev_lang_correct"] = df["jev_lang"] == df["language"]
     systems = ["jev"]
@@ -99,7 +104,7 @@ async def main(csv, llm_usd_per_query, target):
 
     rows = []
     for s in systems:
-        row = {"system": s.upper() if s == "llm" else f"JEV ({'mock' if C.MOCK else C.TYPESAFE_MODEL})"}
+        row = {"system": s.upper() if s == "llm" else f"JEV ({model_ver})"}
         row["acc_all"] = df[f"{s}_correct"].mean()
         for lang in ("en", "uz", "ru"):
             row[f"acc_{lang}"] = df.loc[df.language == lang, f"{s}_correct"].mean()
@@ -114,7 +119,8 @@ async def main(csv, llm_usd_per_query, target):
 
     errors = df.loc[~df["jev_correct"], ["query", "language", "gold_intent", "jev_pred", "jev_conf"]]
     md = ["# FastGate benchmark", "",
-          f"- Queries: {len(df)} · model: {'MOCK heuristic (not Jev)' if C.MOCK else C.TYPESAFE_MODEL}",
+          f"- Queries: {len(df)} · backend: {C.BACKEND} · model: {model_ver}"
+          + (" · MOCK HEURISTIC, NOT JEV" if C.MOCK else ""),
           f"- Jev language-ID accuracy: {df['jev_lang_correct'].mean():.3f}", "",
           summary.to_markdown(index=False), "", "## Jev errors", "",
           errors.to_markdown(index=False) if len(errors) else "_none_"]

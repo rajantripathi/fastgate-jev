@@ -7,3 +7,4 @@ venv/
 .gradio/
 flagged/
 !results/.gitkeep
+results/mock/

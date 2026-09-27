@@ -20,11 +20,18 @@ _client: AsyncTypeSafeClient | None = None
 def get_client() -> AsyncTypeSafeClient:
     global _client
     if _client is None:
-        if C.MOCK:
+        if C.BACKEND == "mock":
             from .mock import mock_transport
             _client = AsyncTypeSafeClient(api_key="mock", model="mock-jev", transport=mock_transport())
-        else:
+        elif C.BACKEND == "cloudflare":
+            import os
+            from .cloudflare import CloudflareJevTransport
+            transport = CloudflareJevTransport(os.environ["CLOUDFLARE_ACCOUNT_ID"], os.environ["CLOUDFLARE_API_TOKEN"])
+            _client = AsyncTypeSafeClient(api_key="cloudflare", model=C.TYPESAFE_MODEL, transport=transport)
+        elif C.BACKEND == "typesafe":
             _client = AsyncTypeSafeClient(model=C.TYPESAFE_MODEL)
+        else:
+            raise ValueError(f"Unknown FASTGATE_BACKEND={C.BACKEND!r}; use typesafe, cloudflare or mock")
     return _client
 
 

@@ -36,7 +36,7 @@ def banner():
                 "<b>MOCK MODE</b>: offline keyword heuristic, not Jev. Set TYPESAFE_API_KEY for real results.</div>")
     extra = f" · LLM: {C.LLM}" if llm.available() else " · LLM step off (set FASTGATE_LLM)"
     return (f"<div style='padding:8px 12px;border-radius:6px;background:#AADED9;color:#21201E'>"
-            f"<b>LIVE</b> · model: {C.TYPESAFE_MODEL}{extra}</div>")
+            f"<b>LIVE</b> · backend: {C.BACKEND} · model: {C.TYPESAFE_MODEL}{extra}</div>")
 
 
 async def run(query: str):
@@ -62,7 +62,7 @@ async def run(query: str):
              f"<b>{label}</b> · {d.reason}<br>"
              f"Jev decided in <b>{d.latency_ms:.0f} ms</b> · language <b>{d.language}</b> · "
              f"urgent {d.urgent:.2f} · wants human {d.wants_human:.2f} · "
-             f"cost ${d.cost_usd:.7f}{race}</div>")
+             f"cost ${d.cost_usd:.7f} · {d.model}{race}</div>")
 
     rows = [[p["id"], p["title"], p["relevance"], "yes" if p["kept"] else "no"] for p in d.passage_scores]
 

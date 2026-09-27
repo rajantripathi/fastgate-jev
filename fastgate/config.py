@@ -3,9 +3,24 @@ import os
 
 TYPESAFE_MODEL = os.getenv("TYPESAFE_MODEL", "jev-latest")
 
-# Mock mode runs fully offline with a keyword heuristic that imitates Jev's
-# response shape. It exists for tests and first-run UX only. Never record a demo in it.
-MOCK = os.getenv("FASTGATE_MOCK") == "1" or not os.getenv("TYPESAFE_API_KEY")
+# Backend: "typesafe" (official API), "cloudflare" (Jev on Workers AI) or "mock".
+# Auto-detected from available credentials unless FASTGATE_BACKEND is set.
+# Mock is an offline keyword heuristic for tests only. Never record a demo in it.
+def _backend() -> str:
+    if os.getenv("FASTGATE_MOCK") == "1":
+        return "mock"
+    explicit = os.getenv("FASTGATE_BACKEND", "").lower()
+    if explicit:
+        return explicit
+    if os.getenv("TYPESAFE_API_KEY"):
+        return "typesafe"
+    if os.getenv("CLOUDFLARE_API_TOKEN") and os.getenv("CLOUDFLARE_ACCOUNT_ID"):
+        return "cloudflare"
+    return "mock"
+
+
+BACKEND = _backend()
+MOCK = BACKEND == "mock"
 
 # Optional LangChain model id for answer generation and the LLM-router baseline,
 # e.g. "anthropic:claude-haiku-4-5-20251001" or "openai:gpt-4o-mini".

@@ -42,10 +42,17 @@ Design choices, each following TypeSafe's published guidance:
 git clone https://github.com/rajantripathi/fastgate-jev && cd fastgate-jev
 pip install -r requirements.txt
 
-export TYPESAFE_API_KEY=...        # early access: https://console.typesafe.ai
+# Option A: official API (https://console.typesafe.ai)
+export TYPESAFE_API_KEY=...
+# Option B: Jev on Cloudflare Workers AI (model typesafe/jev)
+export CLOUDFLARE_ACCOUNT_ID=... CLOUDFLARE_API_TOKEN=...
+
+python scripts/live_check.py       # one live call, prints the Jev version
 python app.py                      # demo UI at http://127.0.0.1:7860
 python benchmark.py                # writes results/summary.md + reliability.png
 ```
+
+The Cloudflare backend is a thin transport adapter under the official `typesafe-sdk`: same request types, same response parsing, only the network hop changes (`fastgate/cloudflare.py`).
 
 With no key, FastGate starts in **mock mode**: an offline keyword heuristic that speaks Jev's wire format so the pipeline, UI and tests run anywhere. The UI shows a red banner in this mode. Mock numbers are not Jev numbers.
 
@@ -76,7 +83,8 @@ fastgate/
   kb.py       small BM25 retriever with suffix-tolerant stems
   llm.py      optional LangChain answer generator + LLM-router baseline
   mock.py     offline stand-in speaking Jev's wire format (tests only)
-  config.py   thresholds, intents, languages
+  cloudflare.py  SDK transport adapter for Jev on Cloudflare Workers AI
+  config.py   backend selection, thresholds, intents, languages
 app.py        Gradio demo
 benchmark.py  accuracy per language, ECE, coverage@precision, latency, cost
 data/         sample knowledge base (fictional university) + 36 labelled EN/UZ/RU queries
@@ -92,7 +100,7 @@ tests/        offline tests (CI runs them in mock mode)
 
 ## Deploy as a Hugging Face Space
 
-Create a Gradio Space, push this repo, and add `TYPESAFE_API_KEY` (and optionally `FASTGATE_LLM` plus the provider key) under *Settings → Secrets*.
+Create a Gradio Space, push this repo, and add `TYPESAFE_API_KEY` or the two `CLOUDFLARE_*` secrets (and optionally `FASTGATE_LLM` plus the provider key) under *Settings → Secrets*.
 
 ## Author
 
