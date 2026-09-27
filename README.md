@@ -46,11 +46,17 @@ pip install -r requirements.txt
 export TYPESAFE_API_KEY=...
 # Option B: Jev on Cloudflare Workers AI (model typesafe/jev)
 export CLOUDFLARE_ACCOUNT_ID=... CLOUDFLARE_API_TOKEN=...
+# Option C: Vercel AI Gateway (TypeSafe-compatible API)
+export AI_GATEWAY_API_KEY=...
 
 python scripts/live_check.py       # one live call, prints the Jev version
 python app.py                      # demo UI at http://127.0.0.1:7860
 python benchmark.py                # writes results/summary.md + reliability.png
 ```
+
+Choose one option. Auto-detection checks TypeSafe, then Vercel, then Cloudflare. `FASTGATE_BACKEND=vercel` explicitly selects Vercel; `FASTGATE_MOCK=1` always selects the offline mock. `.env.example` lists settings, but `.env` is not loaded automatically.
+
+The Vercel backend uses the official SDK with `base_url="https://ai-gateway.vercel.sh/typesafe"`, following [Vercel's TypeSafe client integration](https://vercel.com/changelog/ai-gateway-now-supports-typesafe-clients-and-http-api-for-jev). If a live check reports a model error, retry with `TYPESAFE_MODEL=typesafe-ai/jev`. A 401 indicates an authentication problem; a 402 indicates a billing or credit problem.
 
 The Cloudflare backend is a thin transport adapter under the official `typesafe-sdk`: same request types, same response parsing, only the network hop changes (`fastgate/cloudflare.py`).
 
@@ -66,7 +72,7 @@ python benchmark.py --llm-usd-per-query 0.0004   # measure this from your bill
 
 ## Results
 
-> Run `python benchmark.py` with a real key and paste `results/summary.md` here. State the exact model version.
+> **Pilot: 36 queries.** Run `python benchmark.py` with a real key and paste `results/summary.md` here. State the exact model version.
 
 | system | acc EN | acc UZ | acc RU | ECE ↓ | intent coverage @95% observed precision | p50 ms | $ / 1k |
 |---|---|---|---|---|---|---|---|
@@ -102,7 +108,7 @@ tests/        offline tests (CI runs them in mock mode)
 
 ## Deploy as a Hugging Face Space
 
-Create a Gradio Space, push this repo, and add `TYPESAFE_API_KEY` or the two `CLOUDFLARE_*` secrets (and optionally `FASTGATE_LLM` plus the provider key) under *Settings → Secrets*.
+Create a Gradio Space, push this repo, and add `AI_GATEWAY_API_KEY`, `TYPESAFE_API_KEY`, or the two `CLOUDFLARE_*` secrets (and optionally `FASTGATE_LLM` plus the provider key) under *Settings → Secrets*.
 
 ## Author
 

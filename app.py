@@ -1,4 +1,4 @@
-"""FastGate demo UI.  Run:  python app.py   (set TYPESAFE_API_KEY for real Jev)."""
+"""FastGate demo UI.  Run:  python app.py   (configure a live backend for real Jev)."""
 import asyncio
 
 import gradio as gr
@@ -33,7 +33,7 @@ EXAMPLES = [
 def banner():
     if C.MOCK:
         return ("<div style='padding:8px 12px;border-radius:6px;background:#80003A;color:#F0EFE3'>"
-                "<b>MOCK MODE</b>: offline keyword heuristic, not Jev. Set TYPESAFE_API_KEY for real results.</div>")
+                "<b>MOCK MODE</b>: offline keyword heuristic, not Jev. Set AI_GATEWAY_API_KEY or TYPESAFE_API_KEY for real results.</div>")
     extra = f" · LLM: {C.LLM}" if llm.available() else " · LLM step off (set FASTGATE_LLM)"
     return (f"<div style='padding:8px 12px;border-radius:6px;background:#AADED9;color:#21201E'>"
             f"<b>LIVE</b> · backend: {C.BACKEND} · model: {C.TYPESAFE_MODEL}{extra}</div>")

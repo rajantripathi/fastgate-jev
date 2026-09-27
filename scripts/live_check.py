@@ -18,14 +18,17 @@ async def main():
     print(f"backend: {C.BACKEND}")
     if C.MOCK:
         print("No credentials found, so this would only test the offline mock.\n"
-              "Set CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN (or TYPESAFE_API_KEY) and re-run.")
+              "Set AI_GATEWAY_API_KEY, TYPESAFE_API_KEY, or the CLOUDFLARE_* credentials and re-run.")
         sys.exit(1)
     d = await decide(Q, KnowledgeBase.load().search(Q))
     print(f"model:    {d.model}")
     print(f"language: {d.language} · intent: {d.intent} ({d.intent_conf}) · urgent: {d.urgent}")
     print(f"route:    {d.route} · {d.reason}")
     print(f"latency:  {d.latency_ms:.0f} ms · tokens: {d.input_tokens}")
-    print("LIVE OK" if d.model.startswith("jev") else "WARNING: unexpected model string")
+    if not d.model.startswith("jev-"):
+        print("WARNING: unexpected model string; do not publish this as a verified Jev run")
+        sys.exit(1)
+    print("LIVE OK")
 
 
 asyncio.run(main())

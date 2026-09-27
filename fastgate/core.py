@@ -23,6 +23,13 @@ def get_client() -> AsyncTypeSafeClient:
         if C.BACKEND == "mock":
             from .mock import mock_transport
             _client = AsyncTypeSafeClient(api_key="mock", model="mock-jev", transport=mock_transport())
+        elif C.BACKEND == "vercel":
+            import os
+            _client = AsyncTypeSafeClient(
+                api_key=os.environ["AI_GATEWAY_API_KEY"],
+                model=C.TYPESAFE_MODEL,
+                base_url="https://ai-gateway.vercel.sh/typesafe",
+            )
         elif C.BACKEND == "cloudflare":
             import os
             from .cloudflare import CloudflareJevTransport
@@ -31,7 +38,7 @@ def get_client() -> AsyncTypeSafeClient:
         elif C.BACKEND == "typesafe":
             _client = AsyncTypeSafeClient(model=C.TYPESAFE_MODEL)
         else:
-            raise ValueError(f"Unknown FASTGATE_BACKEND={C.BACKEND!r}; use typesafe, cloudflare or mock")
+            raise ValueError(f"Unknown FASTGATE_BACKEND={C.BACKEND!r}; use typesafe, vercel, cloudflare or mock")
     return _client
 
 

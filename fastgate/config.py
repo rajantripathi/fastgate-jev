@@ -3,7 +3,7 @@ import os
 
 TYPESAFE_MODEL = os.getenv("TYPESAFE_MODEL", "jev-latest")
 
-# Backend: "typesafe" (official API), "cloudflare" (Jev on Workers AI) or "mock".
+# Backend: "typesafe", "vercel", "cloudflare" or "mock".
 # Auto-detected from available credentials unless FASTGATE_BACKEND is set.
 # Mock is an offline keyword heuristic for tests only. Never record a demo in it.
 def _backend() -> str:
@@ -14,6 +14,8 @@ def _backend() -> str:
         return explicit
     if os.getenv("TYPESAFE_API_KEY"):
         return "typesafe"
+    if os.getenv("AI_GATEWAY_API_KEY"):
+        return "vercel"
     if os.getenv("CLOUDFLARE_API_TOKEN") and os.getenv("CLOUDFLARE_ACCOUNT_ID"):
         return "cloudflare"
     return "mock"
