@@ -66,7 +66,7 @@ python benchmark.py --llm-usd-per-query 0.0004   # measure this from your bill
 | Jev (`jev-1.x`) | | | | | | | |
 | LLM router | | | | | | | |
 
-![calibration](results/reliability.png)
+<!-- Restore after running the benchmark with a real key: ![calibration](results/reliability.png) -->
 
 ## Repository layout
 
