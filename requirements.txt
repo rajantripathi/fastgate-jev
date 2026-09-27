@@ -1,0 +1,12 @@
+typesafe-sdk>=0.7.2
+gradio>=5.0
+pandas>=2.0
+numpy
+matplotlib
+tabulate
+pydantic>=2
+# Optional: LLM answer generation + LLM-router baseline
+# langchain>=0.3
+# langchain-anthropic   # or langchain-openai
+# Dev
+pytest

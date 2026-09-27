@@ -1,0 +1,134 @@
+"""Independent benchmark: Jev intent triage on EN / UZ / RU, optionally vs an LLM router.
+
+    python benchmark.py                          # Jev only, data/queries.csv
+    FASTGATE_LLM=anthropic:claude-haiku-4-5-20251001 python benchmark.py --llm-usd-per-query 0.0004
+
+Writes results/results.csv, results/summary.md, results/reliability.png
+"""
+import argparse
+import asyncio
+from pathlib import Path
+
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+from fastgate import config as C
+from fastgate import llm
+from fastgate.core import get_client, triage_questions
+
+OUT = Path("results")
+SEM = asyncio.Semaphore(8)  # be polite to early-access rate limits
+
+
+async def run_jev(q: str):
+    import time
+    async with SEM:
+        t0 = time.perf_counter()
+        r = await get_client().system_one(state={"query": q}, questions=triage_questions())
+        a = r.answers
+        return (a["intent"].choice, float(a["intent"].confidence), max(a["intent"].probabilities.values()),
+                a["language"].choice, (time.perf_counter() - t0) * 1000,
+                r.usage.input_tokens if r.usage else 0)
+
+
+async def run_llm(q: str):
+    async with SEM:
+        return await llm.llm_route(q)
+
+
+def ece(conf, correct, bins=10):
+    conf, correct = np.asarray(conf, float), np.asarray(correct, float)
+    edges, total = np.linspace(0, 1, bins + 1), 0.0
+    for lo, hi in zip(edges[:-1], edges[1:]):
+        m = (conf > lo) & (conf <= hi)
+        if m.any():
+            total += m.mean() * abs(correct[m].mean() - conf[m].mean())
+    return float(total)
+
+
+def coverage_at_precision(conf, correct, target=0.95):
+    """Share of traffic you can auto-route while keeping precision >= target."""
+    order = np.argsort(-np.asarray(conf, float), kind="stable")
+    c = np.asarray(correct, float)[order]
+    prec = np.cumsum(c) / np.arange(1, len(c) + 1)
+    ok = np.where(prec >= target)[0]
+    return float((ok.max() + 1) / len(c)) if len(ok) else 0.0
+
+
+def reliability_plot(df, systems, path):
+    fig, ax = plt.subplots(figsize=(4.6, 4.6))
+    edges = np.linspace(0, 1, 11)
+    colours = {"jev": "#003432", "llm": "#80003A"}
+    for s in systems:
+        conf, corr = df[f"{s}_conf"].to_numpy(), df[f"{s}_correct"].to_numpy(float)
+        xs, ys = [], []
+        for lo, hi in zip(edges[:-1], edges[1:]):
+            m = (conf > lo) & (conf <= hi)
+            if m.sum() >= 3:
+                xs.append(conf[m].mean()); ys.append(corr[m].mean())
+        ax.plot(xs, ys, "o-", color=colours[s], label=s.upper())
+    ax.plot([0, 1], [0, 1], "--", color="#999", lw=1)
+    ax.set(xlim=(0, 1.02), ylim=(0, 1.02), xlabel="stated confidence", ylabel="observed accuracy",
+           title="Calibration · EN / UZ / RU intent triage")
+    ax.legend(frameon=False)
+    fig.tight_layout(); fig.savefig(path, dpi=200); plt.close(fig)
+
+
+async def main(csv, llm_usd_per_query, target):
+    OUT.mkdir(exist_ok=True)
+    df = pd.read_csv(csv)
+    print(f"{len(df)} queries · mode: {'MOCK (not Jev!)' if C.MOCK else C.TYPESAFE_MODEL}")
+
+    jev = await asyncio.gather(*(run_jev(q) for q in df["query"]))
+    df[["jev_pred", "jev_conf", "jev_maxprob", "jev_lang", "jev_ms", "jev_tokens"]] = pd.DataFrame(jev)
+    df["jev_correct"] = df["jev_pred"] == df["gold_intent"]
+    df["jev_lang_correct"] = df["jev_lang"] == df["language"]
+    systems = ["jev"]
+
+    if llm.available():
+        res = await asyncio.gather(*(run_llm(q) for q in df["query"]), return_exceptions=True)
+        res = [r if not isinstance(r, Exception) else ("error", 0.0, np.nan) for r in res]
+        df[["llm_pred", "llm_conf", "llm_ms"]] = pd.DataFrame(res)
+        df["llm_correct"] = df["llm_pred"] == df["gold_intent"]
+        systems.append("llm")
+
+    df.to_csv(OUT / "results.csv", index=False)
+
+    rows = []
+    for s in systems:
+        row = {"system": s.upper() if s == "llm" else f"JEV ({'mock' if C.MOCK else C.TYPESAFE_MODEL})"}
+        row["acc_all"] = df[f"{s}_correct"].mean()
+        for lang in ("en", "uz", "ru"):
+            row[f"acc_{lang}"] = df.loc[df.language == lang, f"{s}_correct"].mean()
+        row["ECE"] = ece(df[f"{s}_conf"], df[f"{s}_correct"])
+        row[f"auto_route@{int(target*100)}%P"] = coverage_at_precision(df[f"{s}_conf"], df[f"{s}_correct"], target)
+        row["p50_ms"] = df[f"{s}_ms"].median()
+        row["p95_ms"] = df[f"{s}_ms"].quantile(0.95)
+        row["usd_per_1k"] = (df["jev_tokens"].mean() * C.JEV_USD_PER_M_INPUT / 1e6 * 1000 if s == "jev"
+                             else (llm_usd_per_query * 1000 if llm_usd_per_query else np.nan))
+        rows.append(row)
+    summary = pd.DataFrame(rows).round(3)
+
+    errors = df.loc[~df["jev_correct"], ["query", "language", "gold_intent", "jev_pred", "jev_conf"]]
+    md = ["# FastGate benchmark", "",
+          f"- Queries: {len(df)} · model: {'MOCK heuristic (not Jev)' if C.MOCK else C.TYPESAFE_MODEL}",
+          f"- Jev language-ID accuracy: {df['jev_lang_correct'].mean():.3f}", "",
+          summary.to_markdown(index=False), "", "## Jev errors", "",
+          errors.to_markdown(index=False) if len(errors) else "_none_"]
+    (OUT / "summary.md").write_text("\n".join(md), encoding="utf-8")
+    reliability_plot(df, systems, OUT / "reliability.png")
+    print(summary.to_string(index=False))
+    print(f"\nWrote {OUT}/summary.md, results.csv, reliability.png")
+
+
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser()
+    ap.add_argument("csv", nargs="?", default="data/queries.csv")
+    ap.add_argument("--llm-usd-per-query", type=float, default=0.0,
+                    help="Measure from your provider bill for the cost column")
+    ap.add_argument("--target-precision", type=float, default=0.95)
+    a = ap.parse_args()
+    asyncio.run(main(a.csv, a.llm_usd_per_query, a.target_precision))

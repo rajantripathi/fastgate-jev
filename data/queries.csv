@@ -1,0 +1,37 @@
+query,language,gold_intent
+"Can I pay my tuition in two parts? The deadline is tomorrow.",en,fees
+"How much discount do I get if my brother also studies here?",en,fees
+"What IELTS score do I need to apply for the bachelor programme?",en,admissions
+"When is the last day to submit my application for autumn?",en,admissions
+"I just arrived from India, how do I register my residence?",en,visa_registration
+"How long does it take to get a visa invitation letter?",en,visa_registration
+"I failed my statistics exam, can I retake it?",en,academic
+"Where can I see my timetable for next semester?",en,academic
+"I forgot my LMS password and can't log in",en,it_support
+"How do I connect to the campus wifi?",en,it_support
+"What's the best restaurant near the metro?",en,out_of_scope
+"I want to talk to a real person about my refund, not a bot",en,fees
+"Kontrakt to'lovini bo'lib to'lash mumkinmi? Muddat ertaga tugaydi.",uz,fees
+"Stipendiya olish uchun nima qilishim kerak?",uz,fees
+"Qabul uchun qanday hujjatlar kerak?",uz,admissions
+"Ariza topshirish muddati qachon tugaydi?",uz,admissions
+"Chet ellik talaba sifatida ro'yxatdan qanday o'taman?",uz,visa_registration
+"Viza uchun taklifnoma qancha vaqtda tayyor bo'ladi?",uz,visa_registration
+"Imtihondan yiqildim, qayta topshirsam bo'ladimi?",uz,academic
+"Dars jadvali qayerda e'lon qilinadi?",uz,academic
+"LMS parolimni unutdim, qanday tiklayman?",uz,it_support
+"Ertaga ob-havo qanday bo'ladi?",uz,out_of_scope
+"Контракт тўловини бўлиб тўлаш мумкинми?",uz,fees
+"Бахога апелляция бериш мумкинми?",uz,academic
+"Можно ли оплатить контракт в рассрочку?",ru,fees
+"Как вернуть деньги за обучение, если я отчисляюсь?",ru,fees
+"Какие документы нужны для поступления?",ru,admissions
+"До какого числа принимают заявки на осень?",ru,admissions
+"Как сделать регистрацию для иностранного студента?",ru,visa_registration
+"Сколько ждать приглашение на визу?",ru,visa_registration
+"Я не сдал экзамен, когда пересдача?",ru,academic
+"Где посмотреть расписание занятий?",ru,academic
+"Не могу войти, забыл пароль от почты",ru,it_support
+"Как подключиться к вай-фай в университете?",ru,it_support
+"Посоветуйте хороший фильм на выходные",ru,out_of_scope
+"Срочно! Соедините меня с сотрудником, завтра дедлайн по оплате",ru,fees
