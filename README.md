@@ -6,7 +6,7 @@
 
 FastGate uses [Jev](https://typesafe.ai), TypeSafe AI's System One model, as the decision layer of a multilingual (English / Uzbek / Russian) university helpdesk. Jev returns typed, calibrated decisions instead of text. FastGate turns those decisions into deterministic, auditable routing, and calls a generative LLM only for queries that are confidently understood and grounded in retrieved sources.
 
-It also ships an **independent benchmark** of Jev on low-resource-language triage: accuracy per language, calibration (ECE and a reliability diagram), safe auto-routing coverage, latency and cost.
+It also ships an **independent benchmark** of Jev on low-resource-language triage: accuracy per language, calibration (ECE and a reliability diagram), exploratory intent coverage, latency and cost.
 
 ## How it works
 
@@ -68,10 +68,12 @@ python benchmark.py --llm-usd-per-query 0.0004   # measure this from your bill
 
 > Run `python benchmark.py` with a real key and paste `results/summary.md` here. State the exact model version.
 
-| system | acc EN | acc UZ | acc RU | ECE ↓ | auto-route @95% precision | p50 ms | $ / 1k |
+| system | acc EN | acc UZ | acc RU | ECE ↓ | intent coverage @95% observed precision | p50 ms | $ / 1k |
 |---|---|---|---|---|---|---|---|
 | Jev (`jev-1.x`) | | | | | | | |
 | LLM router | | | | | | | |
+
+The benchmark measures the intent-triage call only. Its latency and estimated token cost exclude retrieval, the grounding call and answer generation. Coverage at 95% observed precision selects a confidence threshold on the same pilot sample, keeping tied scores together. It does not establish safe automatic routing or 95% precision on future traffic. Fixed-threshold intent coverage and precision are also reported at `FASTGATE_AUTO_CONF` (default 0.85).
 
 <!-- Restore after running the benchmark with a real key: ![calibration](results/reliability.png) -->
 

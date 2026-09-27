@@ -17,8 +17,8 @@ ROUTE_STYLE = {
 }
 TEMPLATES = {
     "template_decline": "I can only help with questions about studying at the university.",
-    "human_review": "I have passed your message to a member of staff, who will reply shortly.",
-    "human": "Connecting you with a member of staff now.",
+    "human_review": "Demo: this message would be queued for staff review. No message has been sent.",
+    "human": "Demo: this request would be handed to staff. No staff connection has been made.",
 }
 EXAMPLES = [
     "Kontrakt to'lovini bo'lib to'lash mumkinmi? Muddat ertaga tugaydi.",

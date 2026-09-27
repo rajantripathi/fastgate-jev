@@ -43,18 +43,34 @@ def ece(conf, correct, bins=10):
     conf, correct = np.asarray(conf, float), np.asarray(correct, float)
     edges, total = np.linspace(0, 1, bins + 1), 0.0
     for lo, hi in zip(edges[:-1], edges[1:]):
-        m = (conf > lo) & (conf <= hi)
+        m = ((conf >= lo) if lo == 0 else (conf > lo)) & (conf <= hi)
         if m.any():
             total += m.mean() * abs(correct[m].mean() - conf[m].mean())
     return float(total)
 
 
 def coverage_at_precision(conf, correct, target=0.95):
-    """Share of traffic you can auto-route while keeping precision >= target."""
-    order = np.argsort(-np.asarray(conf, float), kind="stable")
-    c = np.asarray(correct, float)[order]
+    """Exploratory intent coverage at an observed precision, using whole ties.
+
+    The threshold is selected on these same labels. This is not an estimate
+    of held-out routing safety or the coverage of the full decision pipeline.
+    """
+    conf, correct = np.asarray(conf, float), np.asarray(correct, float)
+    if conf.ndim != 1 or correct.ndim != 1 or len(conf) != len(correct):
+        raise ValueError("conf and correct must be equally sized one-dimensional arrays")
+    if not 0 < target <= 1:
+        raise ValueError("target must be in (0, 1]")
+    if not np.all(np.isfinite(conf)) or np.any((conf < 0) | (conf > 1)):
+        raise ValueError("confidence must be finite and in [0, 1]")
+    if not np.all(np.isin(correct, [0, 1])):
+        raise ValueError("correct must contain only 0 or 1")
+    if not len(conf):
+        return 0.0
+    order = np.argsort(-conf, kind="stable")
+    scores, c = conf[order], correct[order]
     prec = np.cumsum(c) / np.arange(1, len(c) + 1)
-    ok = np.where(prec >= target)[0]
+    threshold_ends = np.r_[scores[:-1] != scores[1:], True]
+    ok = np.flatnonzero(threshold_ends & (prec >= target))
     return float((ok.max() + 1) / len(c)) if len(ok) else 0.0
 
 
@@ -66,7 +82,7 @@ def reliability_plot(df, systems, path):
         conf, corr = df[f"{s}_conf"].to_numpy(), df[f"{s}_correct"].to_numpy(float)
         xs, ys = [], []
         for lo, hi in zip(edges[:-1], edges[1:]):
-            m = (conf > lo) & (conf <= hi)
+            m = ((conf >= lo) if lo == 0 else (conf > lo)) & (conf <= hi)
             if m.sum() >= 3:
                 xs.append(conf[m].mean()); ys.append(corr[m].mean())
         ax.plot(xs, ys, "o-", color=colours[s], label=s.upper())
@@ -109,18 +125,27 @@ async def main(csv, llm_usd_per_query, target):
         for lang in ("en", "uz", "ru"):
             row[f"acc_{lang}"] = df.loc[df.language == lang, f"{s}_correct"].mean()
         row["ECE"] = ece(df[f"{s}_conf"], df[f"{s}_correct"])
-        row[f"auto_route@{int(target*100)}%P"] = coverage_at_precision(df[f"{s}_conf"], df[f"{s}_correct"], target)
+        row[f"intent_coverage@{target*100:g}%P"] = coverage_at_precision(df[f"{s}_conf"], df[f"{s}_correct"], target)
+        accepted = df[f"{s}_conf"] >= C.AUTO_CONF
+        row["fixed_conf"] = C.AUTO_CONF
+        row["fixed_intent_coverage"] = accepted.mean()
+        row["fixed_intent_precision"] = df.loc[accepted, f"{s}_correct"].mean()
         row["p50_ms"] = df[f"{s}_ms"].median()
         row["p95_ms"] = df[f"{s}_ms"].quantile(0.95)
         row["usd_per_1k"] = (df["jev_tokens"].mean() * C.JEV_USD_PER_M_INPUT / 1e6 * 1000 if s == "jev"
                              else (llm_usd_per_query * 1000 if llm_usd_per_query else np.nan))
         rows.append(row)
-    summary = pd.DataFrame(rows).round(3)
+    summary = pd.DataFrame(rows).round(6)
 
     errors = df.loc[~df["jev_correct"], ["query", "language", "gold_intent", "jev_pred", "jev_conf"]]
     md = ["# FastGate benchmark", "",
           f"- Queries: {len(df)} · backend: {C.BACKEND} · model: {model_ver}"
           + (" · MOCK HEURISTIC, NOT JEV" if C.MOCK else ""),
+          "- Scope: intent triage only. Latency and token cost exclude retrieval, grounding and answer generation.",
+          "- Coverage at target precision is exploratory: the threshold is selected on this same sample, with tied scores kept together.",
+          "- Fixed-threshold columns use FASTGATE_AUTO_CONF; they measure intent acceptance, not complete routing safety.",
+          "- Cost is an estimate at the configured input-token price, not a provider invoice.",
+          "- A small pilot does not establish 95% precision on future traffic. Validate on independently labelled held-out queries.",
           f"- Jev language-ID accuracy: {df['jev_lang_correct'].mean():.3f}", "",
           summary.to_markdown(index=False), "", "## Jev errors", "",
           errors.to_markdown(index=False) if len(errors) else "_none_"]
