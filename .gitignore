@@ -8,3 +8,4 @@ venv/
 flagged/
 !results/.gitkeep
 results/mock/
+demo/

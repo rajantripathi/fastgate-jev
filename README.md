@@ -110,6 +110,33 @@ tests/        offline tests (CI runs them in mock mode)
 
 Create a Gradio Space, push this repo, and add `AI_GATEWAY_API_KEY`, `TYPESAFE_API_KEY`, or the two `CLOUDFLARE_*` secrets (and optionally `FASTGATE_LLM` plus the provider key) under *Settings → Secrets*.
 
+## Record a live demo (development tools only)
+
+Install the recording tools separately from the application dependencies:
+
+```bash
+python -m pip install playwright
+python -m playwright install chromium
+brew install ffmpeg  # macOS; ffmpeg and ffprobe must be on PATH
+```
+
+In the same terminal where you privately set the live API key:
+
+```bash
+unset FASTGATE_MOCK
+export FASTGATE_BACKEND=vercel
+python scripts/live_check.py
+python benchmark.py
+python scripts/record_demo.py
+bash scripts/make_video.sh
+```
+
+Run the next command only after the previous command succeeds. The recorder rejects mock mode, launches a fresh headless Chromium browser at 1080 by 1080, runs the four demonstration queries, and closes the app afterwards. Stop any existing app on port 7860 first. It disables the LLM-router comparison for the recording; optional answer generation still follows the route. The normal interactive demo keeps its comparison unless `FASTGATE_COMPARE_LLM=0`.
+
+Outputs are `demo/fastgate_demo_1080.mp4`, `docs/demo.gif` and `demo/video_report.md`. The report traces captions to the benchmark table or observed UI decisions. All files under `demo/` are ignored by git. No credentials are written by either script. The renderer refuses incomplete, mock or mismatched inputs, and flags suspicious pilot results before rendering. After inspecting a flagged run, use `bash scripts/make_video.sh --acknowledge-pilot-warnings` only if the evidence justifies proceeding. Archive an existing recording before starting another one, or use `--output-dir` and pass its manifest to the renderer with `--recording`.
+
+The film labels staff handoffs as simulated and reports intent coverage at observed precision on this sample. It does not claim validated end-to-end safety. Captions reflect the actual route, urgency, kept passages and whether answer generation ran. Any shortened wait is labelled; typing and model response content are not sped up. Review the video and GIF before embedding or publishing them.
+
 ## Author
 
 **Dr Rajan Prasad Tripathi**, Director, AI² Innovation Lab, American University of Technology (Tashkent) · NVIDIA DLI Certified Instructor
